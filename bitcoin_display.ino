@@ -6,10 +6,19 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 
 //Configuracion del Internet
 const char ssid[] = "AXTEL XTREMO-EF67";
 const char password[] = "036AEF67";
+
+const long utcOffsetInSeconds = 25200;
+
+char daysOfTheWeek[7][12] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+
+// Define NTP Client to get time
+
 
 //Declaramos el pin de salida y el numero de LEDs del NeoPixel
 #define PIN 12  
@@ -25,6 +34,8 @@ float previousValue = 0.0;
 float threshold = 0.05;
 float calc=0.0;
 int  n=0;
+float horas=0.1;
+float milisegundos = (horas * 3600000);
 
 //arrancamos el circulo de leds
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800);
@@ -35,12 +46,13 @@ Adafruit_SSD1306 display = Adafruit_SSD1306(128, 32, &Wire);
 
 
 //Colores de los LEDS
-uint32_t redColor = pixels.Color(255,0,0,127);
-uint32_t greenColor = pixels.Color(0,255,0,255);
-uint32_t blueColor = pixels.Color(0,0,255,255);
+uint32_t redColor = pixels.Color(255,0,0,25);
+uint32_t greenColor = pixels.Color(0,255,0,25);
+uint32_t blueColor = pixels.Color(0,0,255,25);
 uint32_t resetColor = pixels.Color(0,0,0);
 
-
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "north-america.pool.ntp.org", utcOffsetInSeconds);
 
 // API server
 const char* host = "api.coindesk.com";
@@ -54,7 +66,7 @@ void setup() {
   delay(10);
   pixels.show();
   display.begin(SSD1306_SWITCHCAPVCC, 0x3C); // Address 0x3C for 128x32
-
+  timeClient.begin();
   // Clear the buffer.
   display.display();
   display.clearDisplay();
@@ -83,6 +95,8 @@ void setup() {
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
 }
+
+
 
 void loop() {
 
@@ -154,13 +168,37 @@ void loop() {
   Serial.println();
   Serial.println("Bitcoin price: ");
   Serial.println(price);
+  Serial.println(milisegundos);
+
+
+   timeClient.update();
+
+  Serial.print(daysOfTheWeek[timeClient.getDay()]);
+  Serial.print(", ");
+  Serial.print(timeClient.getHours());
+  Serial.print(":");
+  Serial.print(timeClient.getMinutes());
+  Serial.print(":");
+  Serial.println(timeClient.getSeconds());
+
+  
  
   display.clearDisplay();
   display.display();
   display.setCursor(0,0);
   display.print("El precio de Bitcoin es: $");
   display.print(price);
-  display.print(" USD");
+  display.println(" USD ");
+  display.print("(");
+  display.print(horas);
+  display.print(")");
+  display.print(daysOfTheWeek[timeClient.getDay()]);
+  display.print(", ");
+  display.print(timeClient.getHours());
+  display.print(":");
+  display.print(timeClient.getMinutes());
+  display.print(":");
+  display.println(timeClient.getSeconds());
   display.display();
  // Init previous value 
   if (previousValue == 0.0) {
@@ -177,7 +215,7 @@ if (price == (previousValue)) {
     Serial.println(previousValue);
     Serial.print("Precio Nuevo");
     Serial.println(price);
-    Serial.print("El precio es el mismo");
+    Serial.print("    El precio es el mismo");
     Serial.println();
     // Flash LED
 //pixels.setPixelColor(1, pixels.Color(255,0,0));
@@ -198,6 +236,30 @@ if ((price < previousValue) && (price > 0)) {
     Serial.println(price);
     Serial.print("El porcentaje de decremento es:");
     Serial.println(calc);
+
+    display.clearDisplay();
+    display.display();
+    display.setCursor(0,0);
+    display.print("El precio de Bitcoin es: $");
+    display.print(price);
+    display.println(" USD");
+    
+    display.print("Bajo: ");
+    display.print(calc);
+    display.println(" %");
+    display.print("(");
+    display.print(horas);
+    display.print(")");
+    display.print(daysOfTheWeek[timeClient.getDay()]);
+    display.print(", ");
+    display.print(timeClient.getHours());
+    display.print(":");
+    display.print(timeClient.getMinutes());
+    display.print(":");
+    display.println(timeClient.getSeconds());
+    display.display();
+
+    
     // Flash LED
 //pixels.setPixelColor(1, pixels.Color(255,0,0));
   
@@ -218,6 +280,34 @@ if ((price < previousValue) && (price > 0)) {
     Serial.print("El porcentaje de incremento es:");
     Serial.println(calc);
 
+    display.clearDisplay();
+    display.display();
+    display.setCursor(0,0);
+    display.print("El precio de Bitcoin es: $");
+    display.print(price);
+    display.println(" USD");
+ 
+
+    
+ 
+    display.print("Subio: ");
+    display.print(calc);
+    display.println(" %");
+    display.print("(");
+    display.print(horas);
+    display.print(")");
+    display.print(daysOfTheWeek[timeClient.getDay()]);
+    display.print(", ");
+    display.print(timeClient.getHours());
+    display.print(":");
+    display.print(timeClient.getMinutes());
+    display.print(":");
+    display.println(timeClient.getSeconds());
+    
+    display.display();
+
+    
+
 // Flash LED
 //pixels.setPixelColor(1, pixels.Color(0,255,0));
     
@@ -235,8 +325,9 @@ if ((price < previousValue) && (price > 0)) {
   previousValue = price;
 
 
-  // Wait 5 seconds
-  delay(30000);
+  // Wait horas en milisegundos
+
+  delay(milisegundos);
 
   //Reseteo
   pixels.fill(resetColor, 0, 16);
